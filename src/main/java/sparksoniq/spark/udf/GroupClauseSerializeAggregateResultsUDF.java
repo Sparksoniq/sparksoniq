@@ -26,6 +26,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import scala.collection.Seq;
 import scala.collection.mutable.WrappedArray;
 import sparksoniq.jsoniq.item.Item;
 import sparksoniq.spark.DataFrameUtils;
@@ -34,7 +35,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class GroupClauseSerializeAggregateResultsUDF implements UDF1<WrappedArray, byte[]> {
+public class GroupClauseSerializeAggregateResultsUDF implements UDF1<WrappedArray,Seq<byte[]>> {
 
     private List<Item> _nextResult;
     private List<List<Item>> _deserializedParams;
@@ -55,7 +56,7 @@ public class GroupClauseSerializeAggregateResultsUDF implements UDF1<WrappedArra
     }
 
     @Override
-    public byte[] call(WrappedArray wrappedParameters) {
+    public Seq<byte[]> call(WrappedArray wrappedParameters) {
         _nextResult.clear();
         _deserializedParams.clear();
         DataFrameUtils.deserializeWrappedParameters(wrappedParameters, _deserializedParams, _kryo, _input);

@@ -27,6 +27,7 @@ import org.apache.spark.sql.RowFactory;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
 
+import scala.collection.Seq;
 import sparksoniq.jsoniq.item.Item;
 import sparksoniq.jsoniq.tuple.FlworTuple;
 import sparksoniq.spark.DataFrameUtils;
@@ -58,7 +59,7 @@ public class ForClauseLocalToRowClosure implements Function<Item, Row> {
         itemList.add(item);
         rowColumns.add(itemList);
 
-        List<byte[]> serializedRowColumns = new ArrayList<>();
+        List<Seq<byte[]>> serializedRowColumns = new ArrayList<>();
         for (List<Item> column : rowColumns) {
             serializedRowColumns.add(DataFrameUtils.serializeItemList(column, _kryo, _output));
         }

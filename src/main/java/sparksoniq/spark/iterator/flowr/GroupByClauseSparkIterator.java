@@ -311,7 +311,7 @@ public class GroupByClauseSparkIterator extends SparkRuntimeTupleIterator {
         String serializerUDFName = "serialize";
         df.sparkSession().udf().register(serializerUDFName,
                 new GroupClauseSerializeAggregateResultsUDF(),
-                DataTypes.BinaryType);
+                DataTypes.createArrayType(DataTypes.BinaryType));
         
 
         List<String> allColumns = DataFrameUtils.getColumnNames(inputSchema);

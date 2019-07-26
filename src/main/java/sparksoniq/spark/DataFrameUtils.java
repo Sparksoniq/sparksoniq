@@ -30,7 +30,10 @@ import org.apache.spark.sql.expressions.UserDefinedFunction;
 import org.apache.spark.sql.expressions.Window;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+
 import scala.collection.mutable.WrappedArray;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 import sparksoniq.jsoniq.item.ArrayItem;
 import sparksoniq.jsoniq.item.BooleanItem;
 import sparksoniq.jsoniq.item.DecimalItem;
@@ -70,9 +73,9 @@ public class DataFrameUtils {
         }
     };
 
-    private static ThreadLocal<List<Item>> lastObjectItemCache = new ThreadLocal<List<Item>>() {
+    private static ThreadLocal<Item> lastObjectItemCache = new ThreadLocal<Item>() {
         @Override
-        protected List<Item> initialValue() {
+        protected Item initialValue() {
             return null;
         }
     };
@@ -97,16 +100,22 @@ public class DataFrameUtils {
         return output.toBytes();
     }
 
-    public static byte[] serializeItemList(List<Item> toSerialize, Kryo kryo, Output output) {
-        output.clear();
-        kryo.writeClassAndObject(output, toSerialize);
-        byte[] serializedBytes = output.toBytes();
+    public static Seq<byte[]> serializeItemList(List<Item> toSerialize, Kryo kryo, Output output) {
+        List<byte[]> result = new ArrayList<byte[]>(toSerialize.size());
+        byte[] serializedBytes = null;
+        for(Item i : toSerialize)
+        {
+            output.clear();
+            kryo.writeClassAndObject(output, i);
+            serializedBytes = output.toBytes();
+            result.add(serializedBytes);
+        }
         if(toSerialize.size() == 1 && toSerialize.get(0).isObject())
         {
             lastBytesCache.set(serializedBytes);
-            lastObjectItemCache.set(toSerialize);
+            lastObjectItemCache.set(toSerialize.get(0));
         }
-        return serializedBytes;
+        return JavaConverters.asScalaIteratorConverter(result.iterator()).asScala().toSeq();
     }
 
     /**
@@ -230,35 +239,40 @@ public class DataFrameUtils {
         return queryColumnString.toString();
     }
 
-    public static Object deserializeByteArray(byte[] toDeserialize, Kryo kryo, Input input) {
+    public static Item deserializeByteArray(byte[] toDeserialize, Kryo kryo, Input input) {
         byte[] bytes = lastBytesCache.get();
         if(bytes != null)
         {
             if(Arrays.equals(bytes, toDeserialize))
             {
-                List<Item> deserializedParam = lastObjectItemCache.get();
-                return deserializedParam;
+                Item deserializedItem = lastObjectItemCache.get();
+                return deserializedItem;
             }
         }
         input.setBuffer(toDeserialize);
-        return kryo.readClassAndObject(input);
+        return (Item) kryo.readClassAndObject(input);
     }
 
     public static void deserializeWrappedParameters(WrappedArray wrappedParameters, List<List<Item>> deserializedParams, Kryo kryo, Input input) {
         Object[] serializedParams = (Object[]) wrappedParameters.array();
         for (Object serializedParam: serializedParams) {
-            List<Item> deserializedParam = (List<Item>) deserializeByteArray((byte[]) serializedParam, kryo, input);
+            Seq<byte[]> bytes = (Seq<byte[]>) serializedParam;
+            List<Item> deserializedParam = new ArrayList<Item>();
+            for(byte[] b : JavaConverters.asJavaIterableConverter(bytes).asJava())
+            {
+                deserializedParam.add(deserializeByteArray(b, kryo, input));
+            }
             deserializedParams.add(deserializedParam);
         }
     }
 
     public static Row reserializeRowWithNewData(Row prevRow, List<Item> newColumn, int duplicateColumnIndex, Kryo kryo, Output output) {
-        List<byte[]> newRowColumns = new ArrayList<>();
+        List<Seq<byte[]>> newRowColumns = new ArrayList<>();
         for (int columnIndex = 0; columnIndex < prevRow.length(); columnIndex++) {
             if (duplicateColumnIndex == columnIndex) {
                 newRowColumns.add(serializeItemList(newColumn, kryo, output));
             } else {
-                newRowColumns.add((byte[]) prevRow.get(columnIndex));
+                newRowColumns.add((Seq<byte[]>) prevRow.get(columnIndex));
             }
         }
         if (duplicateColumnIndex == -1) {
@@ -268,17 +282,27 @@ public class DataFrameUtils {
     }
 
     public static List<Item> deserializeRowField(Row row, int columnIndex, Kryo kryo, Input input) {
-        byte[] bytes = (byte[]) row.get(columnIndex);
-        input.setBuffer(bytes);
-        return (List<Item>) kryo.readClassAndObject(input);
+        Seq<byte[]> bytes = (Seq<byte[]>) row.get(columnIndex);
+        List<Item> result = new ArrayList<Item>();
+        for(byte[] b : JavaConverters.asJavaIterableConverter(bytes).asJava())
+        {
+            input.setBuffer(b);
+            result.add((Item) kryo.readClassAndObject(input));
+        }
+        return result;
     }
 
-    public static List<Object> deserializeEntireRow(Row row, Kryo kryo, Input input) {
-        ArrayList<Object> deserializedColumnObjects = new ArrayList<>();
+    public static List<List<Item>> deserializeEntireRow(Row row, Kryo kryo, Input input) {
+        List<List<Item>> deserializedColumnObjects = new ArrayList<List<Item>>();
         for (int columnIndex = 0; columnIndex < row.length(); columnIndex++) {
-            input.setBuffer((byte[]) row.get(columnIndex));
-            Object deserializedColumnObject = kryo.readClassAndObject(input);
-            deserializedColumnObjects.add(deserializedColumnObject);
+            Seq<byte[]> bytes = (Seq<byte[]>) row.get(columnIndex);
+            List<Item> result = new ArrayList<Item>();
+            for(byte[] b : JavaConverters.asJavaIterableConverter(bytes).asJava())
+            {
+                input.setBuffer(b);
+                result.add((Item) kryo.readClassAndObject(input));
+            }
+            deserializedColumnObjects.add(result);
         }
 
         return deserializedColumnObjects;

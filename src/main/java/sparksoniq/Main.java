@@ -26,6 +26,10 @@ import sparksoniq.spark.SparkSessionManager;
 
 import java.io.IOException;
 
+import org.apache.spark.SparkException;
+import org.jline.reader.EndOfFileException;
+import org.jline.reader.UserInterruptException;
+
 public class Main {
     public static JiqsJLineShell terminal = null;
 
@@ -65,12 +69,24 @@ public class Main {
                 System.out.println("spark-submit --master local[*] spark-rumble-1.0.jar --query-path my-query.jq --output-path my-output.json --log-path my-log.txt");
             }
         } catch (Exception ex) {
-            System.out.println("An error has occured: " + ex.getMessage());
-            System.out.println("We should investigate this 🙈. Please contact us or file an issue on GitHub with your query.");
-            System.out.println("Link: https://github.com/RumbleDB/rumble/issues");
-            ex.printStackTrace();
+            handleException(ex);
         }
 
+    }
+    
+    private static void handleException(Throwable ex) {
+        if (ex != null) {
+            if (ex instanceof SparkException) {
+                System.out.println("An error has occured: " + ex.getMessage());
+                Throwable sparkExceptionCause = ex.getCause();
+                handleException(sparkExceptionCause);;
+            } else {
+                System.out.println("An error has occured: " + ex.getMessage());
+                System.out.println("We should investigate this 🙈. Please contact us or file an issue on GitHub with your query.");
+                System.out.println("Link: https://github.com/RumbleDB/rumble/issues");
+                ex.printStackTrace();
+            }
+        }
     }
 
     private static void runQueryExecutor(SparksoniqRuntimeConfiguration sparksoniqConf) throws IOException {

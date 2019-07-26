@@ -25,6 +25,7 @@ import org.apache.spark.sql.api.java.UDF1;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
 
+import scala.collection.Seq;
 import sparksoniq.jsoniq.item.IntegerItem;
 import sparksoniq.jsoniq.item.Item;
 import sparksoniq.spark.DataFrameUtils;
@@ -33,7 +34,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CountClauseSerializeUDF implements UDF1<Long, byte[]> {
+public class CountClauseSerializeUDF implements UDF1<Long, Seq<byte[]>> {
 
     private List<Item> _nextResult;
     
@@ -50,7 +51,7 @@ public class CountClauseSerializeUDF implements UDF1<Long, byte[]> {
     }
 
     @Override
-    public byte[] call(Long countIndex) {
+    public Seq<byte[]> call(Long countIndex) {
         _nextResult.clear();
         _nextResult.add(new IntegerItem(countIndex.intValue()));
 

@@ -139,7 +139,7 @@ public class CountClauseSparkIterator extends SparkRuntimeTupleIterator {
         Dataset<Row> dfWithIndex = DataFrameUtils.zipWithIndex(df, new Long(1), _variableName);
 
         df.sparkSession().udf().register("serializeCountIndex",
-                new CountClauseSerializeUDF(), DataTypes.BinaryType);
+                new CountClauseSerializeUDF(), DataTypes.createArrayType(DataTypes.BinaryType));
 
         dfWithIndex.createOrReplaceTempView("input");
         dfWithIndex = dfWithIndex.sparkSession().sql(

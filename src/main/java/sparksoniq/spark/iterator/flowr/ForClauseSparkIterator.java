@@ -210,7 +210,7 @@ public class ForClauseSparkIterator extends SparkRuntimeTupleIterator {
 
             // define a schema
             List<StructField> fields = new ArrayList<>();
-            StructField field = DataTypes.createStructField(_variableName, DataTypes.BinaryType, true);
+            StructField field = DataTypes.createStructField(_variableName, DataTypes.createArrayType(DataTypes.BinaryType, false), true);
             fields.add(field);
             StructType schema = DataTypes.createStructType(fields);
 

@@ -79,11 +79,7 @@ public class LetClauseMapClosure implements MapFunction<Row, Row> {
         String[] columnNames = _inputSchema.fieldNames();
 
         // Deserialize row
-        List<Object> deserializedRow = DataFrameUtils.deserializeEntireRow(row, _kryo, _input);
-        for (Object columnObject : deserializedRow) {
-            List<Item> column = (List<Item>) columnObject;
-            _rowColumns.add(column);
-        }
+        _rowColumns = DataFrameUtils.deserializeEntireRow(row, _kryo, _input);
 
         // Create dynamic context with deserialized data
         for (int columnIndex = 0; columnIndex < columnNames.length; columnIndex++) {

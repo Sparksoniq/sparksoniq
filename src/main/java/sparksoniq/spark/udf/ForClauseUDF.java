@@ -27,6 +27,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import scala.collection.Seq;
 import scala.collection.mutable.WrappedArray;
 import sparksoniq.jsoniq.item.Item;
 import sparksoniq.jsoniq.runtime.iterator.RuntimeIterator;
@@ -37,7 +38,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ForClauseUDF implements UDF1<WrappedArray, List> {
+public class ForClauseUDF implements UDF1<WrappedArray, List<Seq<byte[]>>> {
     private RuntimeIterator _expression;
     private StructType _inputSchema;
     List<String> _columnNames;
@@ -45,7 +46,7 @@ public class ForClauseUDF implements UDF1<WrappedArray, List> {
     private List<List<Item>> _deserializedParams;
     private DynamicContext _context;
     private List<Item> _nextResult;
-    private List<byte[]> _results;
+    private List<Seq<byte[]>> _results;
     
     private transient Kryo _kryo;
     private transient Output _output;
@@ -73,7 +74,7 @@ public class ForClauseUDF implements UDF1<WrappedArray, List> {
 
 
     @Override
-    public List call(WrappedArray wrappedParameters) {
+    public List<Seq<byte[]>> call(WrappedArray wrappedParameters) {
         _deserializedParams.clear();
         _context.removeAllVariables();
         _results.clear();
