@@ -9,6 +9,8 @@ Rumble uses the following software:
 - Kryo serialization framework - BSD License
 - Apache Commons Text - Apache License
 - Apache Commons Lang - Apache License
+- Apache HTTP client - Apache License
 - Laurelin (ROOT parser) - BSD-3
+- Joda time - Apache License
 
 As well as the JSONiq language - CC BY-SA 3.0 License

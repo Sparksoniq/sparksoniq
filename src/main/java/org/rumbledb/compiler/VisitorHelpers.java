@@ -1,6 +1,7 @@
 package org.rumbledb.compiler;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +11,6 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.misc.ParseCancellationException;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.rumbledb.config.RumbleRuntimeConfiguration;
 import org.rumbledb.context.DynamicContext;
 import org.rumbledb.context.FunctionIdentifier;
@@ -57,7 +57,7 @@ public class VisitorHelpers {
 
     public static MainModule parseMainModuleFromLocation(URI location, RumbleRuntimeConfiguration configuration)
             throws IOException {
-        FSDataInputStream in = FileSystemUtil.getDataInputStream(location, ExceptionMetadata.EMPTY_METADATA);
+        InputStream in = FileSystemUtil.getDataInputStream(location, ExceptionMetadata.EMPTY_METADATA);
         return parseMainModule(CharStreams.fromStream(in), location, configuration);
     }
 
@@ -68,7 +68,7 @@ public class VisitorHelpers {
             ExceptionMetadata metadata
     )
             throws IOException {
-        FSDataInputStream in = FileSystemUtil.getDataInputStream(location, metadata);
+        InputStream in = FileSystemUtil.getDataInputStream(location, metadata);
         return parseLibraryModule(CharStreams.fromStream(in), location, importingModuleContext, configuration);
     }
 

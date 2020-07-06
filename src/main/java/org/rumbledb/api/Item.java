@@ -20,8 +20,6 @@
 
 package org.rumbledb.api;
 
-import org.joda.time.DateTime;
-import org.joda.time.Period;
 import org.rumbledb.context.FunctionIdentifier;
 import org.rumbledb.context.Name;
 import org.rumbledb.exceptions.ExceptionMetadata;
@@ -35,6 +33,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
+import java.time.Period;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
@@ -316,7 +316,7 @@ public abstract class Item implements SerializableItem {
      *
      * @return the dateTime value as a DateTime.
      */
-    public DateTime getDateTimeValue() {
+    public ZonedDateTime getDateTimeValue() {
         throw new OurBadException(" Item '" + this.serialize() + "' does not have a DateTime.");
     }
 

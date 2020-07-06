@@ -18,6 +18,7 @@ import org.rumbledb.exceptions.UnexpectedTypeException;
 import org.rumbledb.expressions.comparison.ComparisonExpression;
 import org.rumbledb.types.ItemType;
 
+import java.time.ZonedDateTime;
 import java.util.regex.Pattern;
 
 import static org.joda.time.format.ISODateTimeFormat.dateElementParser;
@@ -53,14 +54,14 @@ public class DateTimeItem extends AtomicItem {
 
 
     private static final long serialVersionUID = 1L;
-    private DateTime value;
+    private ZonedDateTime value;
     private boolean hasTimeZone = true;
 
     public DateTimeItem() {
         super();
     }
 
-    DateTimeItem(DateTime value, boolean hasTimeZone) {
+    DateTimeItem(ZonedDateTime value, boolean hasTimeZone) {
         super();
         this.value = value;
         this.hasTimeZone = hasTimeZone;
@@ -74,12 +75,12 @@ public class DateTimeItem extends AtomicItem {
         }
     }
 
-    public DateTime getValue() {
+    public ZonedDateTime getValue() {
         return this.value;
     }
 
     @Override
-    public DateTime getDateTimeValue() {
+    public ZonedDateTime getDateTimeValue() {
         return this.getValue();
     }
 
@@ -247,12 +248,12 @@ public class DateTimeItem extends AtomicItem {
         return dateTime;
     }
 
-    static DateTime parseDateTime(String dateTime, ItemType dateTimeType) throws IllegalArgumentException {
+    static ZonedDateTime parseDateTime(String dateTime, ItemType dateTimeType) throws IllegalArgumentException {
         if (!checkInvalidDateTimeFormat(dateTime, dateTimeType)) {
             throw new IllegalArgumentException();
         }
         dateTime = fixEndOfDay(dateTime);
-        return DateTime.parse(dateTime, getDateTimeFormatter(dateTimeType));
+        return ZonedDateTime.parse(dateTime, getDateTimeFormatter(dateTimeType));
     }
 
     @Override

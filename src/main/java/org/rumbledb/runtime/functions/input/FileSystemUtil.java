@@ -2,11 +2,16 @@ package org.rumbledb.runtime.functions.input;
 
 import org.apache.hadoop.HadoopIllegalArgumentException;
 import org.apache.hadoop.fs.CreateFlag;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnsupportedFileSystemException;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.rumbledb.exceptions.CannotRetrieveResourceException;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.OurBadException;
@@ -14,6 +19,7 @@ import org.rumbledb.exceptions.RumbleException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -112,7 +118,10 @@ public class FileSystemUtil {
         }
     }
 
-    public static FSDataInputStream getDataInputStream(URI locator, ExceptionMetadata metadata) {
+    public static InputStream getDataInputStream(URI locator, ExceptionMetadata metadata) {
+        if (locator.getScheme().equals("http") || locator.getScheme().equals("https")) {
+            return getDataInputStreamHTML(locator, metadata);
+        }
         checkForAbsoluteAndNoWildcards(locator, metadata);
         try {
             FileContext fileContext = FileContext.getFileContext();
@@ -127,8 +136,30 @@ public class FileSystemUtil {
         }
     }
 
+    public static InputStream getDataInputStreamHTML(URI locator, ExceptionMetadata metadata) {
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        HttpGet httpGet = new HttpGet(locator);
+        try {
+            CloseableHttpResponse response = httpclient.execute(httpGet);
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == 200) {
+                HttpEntity entity = response.getEntity();
+                return entity.getContent();
+            }
+            throw new CannotRetrieveResourceException(
+                    "Unsuccessful status code: " + statusCode + " while requesting " + locator,
+                    metadata
+            );
+        } catch (ClientProtocolException e) {
+            handleException(e, locator, metadata);
+        } catch (IOException e) {
+            handleException(e, locator, metadata);
+        }
+        return null;
+    }
+
     public static String readContent(URI locator, ExceptionMetadata metadata) {
-        FSDataInputStream inputStream = getDataInputStream(locator, metadata);
+        InputStream inputStream = getDataInputStream(locator, metadata);
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         StringBuffer sb = new StringBuffer();
         String line;

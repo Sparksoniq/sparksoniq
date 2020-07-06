@@ -3,10 +3,9 @@ package org.rumbledb.items;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.Period;
-import org.joda.time.PeriodType;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
+import java.time.Period;
 import org.rumbledb.api.Item;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.IteratorFlowException;
@@ -17,14 +16,14 @@ import org.rumbledb.types.ItemType;
 public class DateItem extends AtomicItem {
 
     private static final long serialVersionUID = 1L;
-    private DateTime value;
+    private ZonedDateTime value;
     private boolean hasTimeZone = true;
 
     public DateItem() {
         super();
     }
 
-    DateItem(DateTime value, boolean hasTimeZone) {
+    DateItem(ZonedDateTime value, boolean hasTimeZone) {
         super();
         this.value = value;
         this.hasTimeZone = hasTimeZone;
@@ -38,12 +37,12 @@ public class DateItem extends AtomicItem {
         }
     }
 
-    public DateTime getValue() {
+    public ZonedDateTime getValue() {
         return this.value;
     }
 
     @Override
-    public DateTime getDateTimeValue() {
+    public ZonedDateTime getDateTimeValue() {
         return this.value;
     }
 
@@ -180,17 +179,17 @@ public class DateItem extends AtomicItem {
 
     @Override
     public void write(Kryo kryo, Output output) {
-        output.writeLong(this.getDateTimeValue().getMillis(), true);
+        output.writeLong(this.getDateTimeValue().get, true);
         output.writeBoolean(this.hasTimeZone);
-        output.writeString(this.getDateTimeValue().getZone().getID());
+        output.writeString(this.getDateTimeValue().getZone().toString());
     }
 
     @Override
     public void read(Kryo kryo, Input input) {
         Long millis = input.readLong(true);
         this.hasTimeZone = input.readBoolean();
-        DateTimeZone zone = DateTimeZone.forID(input.readString());
-        this.value = new DateTime(millis, zone);
+        ZoneId zone = ZoneId.of(input.readString());
+        this.value = new ZonedDateTime(millis, zone);
     }
 
     @Override

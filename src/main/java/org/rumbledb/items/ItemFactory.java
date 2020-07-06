@@ -1,7 +1,7 @@
 package org.rumbledb.items;
 
-import org.joda.time.DateTime;
-import org.joda.time.Period;
+import java.time.ZonedDateTime;
+import java.time.Period;
 import org.rumbledb.api.Item;
 import org.rumbledb.exceptions.ExceptionMetadata;
 
@@ -67,7 +67,7 @@ public class ItemFactory {
         return new DayTimeDurationItem(p);
     }
 
-    public Item createDateTimeItem(DateTime dt, boolean hasTimeZone) {
+    public Item createDateTimeItem(ZonedDateTime dt, boolean hasTimeZone) {
         return new DateTimeItem(dt, hasTimeZone);
     }
 
@@ -75,7 +75,7 @@ public class ItemFactory {
         return new DateTimeItem(s);
     }
 
-    public Item createDateItem(DateTime dt, boolean hasTimeZone) {
+    public Item createDateItem(ZonedDateTime dt, boolean hasTimeZone) {
         return new DateItem(dt, hasTimeZone);
     }
 
