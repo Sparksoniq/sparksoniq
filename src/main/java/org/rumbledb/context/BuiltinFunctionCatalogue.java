@@ -56,6 +56,7 @@ import org.rumbledb.runtime.functions.input.AvroFileFunctionIterator;
 import org.rumbledb.runtime.functions.input.CSVFileFunctionIterator;
 import org.rumbledb.runtime.functions.input.JsonFileFunctionIterator;
 import org.rumbledb.runtime.functions.input.LibSVMFileFunctionIterator;
+import org.rumbledb.runtime.functions.input.MongoCollectionFunctionIterator;
 import org.rumbledb.runtime.functions.input.ParallelizeFunctionIterator;
 import org.rumbledb.runtime.functions.input.ParquetFileFunctionIterator;
 import org.rumbledb.runtime.functions.input.RootFileFunctionIterator;
@@ -429,6 +430,29 @@ public class BuiltinFunctionCatalogue {
         "item*",
         RootFileFunctionIterator.class,
         BuiltinFunction.BuiltinFunctionExecutionMode.DATAFRAME
+    );
+    
+
+    /**
+     * function that reads a Mongo collection
+     */
+    static final BuiltinFunction mongo_collection1 = createBuiltinFunction(
+        "mongo-collection",
+        "string",
+        "item*",
+        MongoCollectionFunctionIterator.class,
+        BuiltinFunction.BuiltinFunctionExecutionMode.RDD
+    );
+    /**
+     * function that reads a Mongo collection
+     */
+    static final BuiltinFunction mongo_collection2 = createBuiltinFunction(
+        "mongo-collection",
+        "string",
+        "string",
+        "item*",
+        MongoCollectionFunctionIterator.class,
+        BuiltinFunction.BuiltinFunctionExecutionMode.RDD
     );
 
     /**
@@ -1830,6 +1854,8 @@ public class BuiltinFunctionCatalogue {
         builtinFunctions.put(root_file2.getIdentifier(), root_file2);
         builtinFunctions.put(avro_file1.getIdentifier(), avro_file1);
         builtinFunctions.put(avro_file2.getIdentifier(), avro_file2);
+        builtinFunctions.put(mongo_collection1.getIdentifier(), mongo_collection1);
+        builtinFunctions.put(mongo_collection2.getIdentifier(), mongo_collection2);
 
         builtinFunctions.put(count.getIdentifier(), count);
         builtinFunctions.put(boolean_function.getIdentifier(), boolean_function);

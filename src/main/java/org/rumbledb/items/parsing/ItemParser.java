@@ -35,6 +35,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.DecimalType;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.bson.Document;
+import org.bson.types.ObjectId;
 import org.joda.time.DateTime;
 import org.rumbledb.api.Item;
 import org.rumbledb.exceptions.ExceptionMetadata;
@@ -49,11 +51,16 @@ import sparksoniq.spark.SparkSessionManager;
 import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.sql.Date;
+import java.util.Date;
 import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class ItemParser implements Serializable {
 
@@ -456,5 +463,67 @@ public class ItemParser implements Serializable {
         throw new OurBadException(
                 "Unhandled item type found while generating rows: '" + dataType + "' ."
         );
+    }
+    
+    public static Item getItemFromBSON(Object object, ExceptionMetadata metadata)
+    {
+        if(object instanceof Document)
+        {
+            Document document = (Document) object;
+            Map<String, List<Item>> map = new HashMap<>();
+            for(String key : document.keySet()) {
+                Item value = getItemFromBSON(document.get(key), metadata);
+                map.put(key, Collections.singletonList(value));
+            }
+            return ItemFactory.getInstance().createObjectItem(map);
+        }
+        if(object instanceof ArrayList<?>)
+        {
+            ArrayList<?> arrayList = (ArrayList<?>) object;
+            List<Item> items = new ArrayList<>();
+            for(Object o : arrayList)
+            {
+                items.add(getItemFromBSON(o, metadata));
+            }
+            return ItemFactory.getInstance().createArrayItem(items);
+        }
+        if(object instanceof String)
+        {
+            return ItemFactory.getInstance().createStringItem((String)object);
+        }
+        if(object instanceof Long)
+        {
+            return ItemFactory.getInstance().createLongItem(((Long)object).longValue());
+        }
+        if(object instanceof Integer)
+        {
+            return ItemFactory.getInstance().createIntItem(((Integer)object).intValue());
+        }
+        if(object instanceof Boolean)
+        {
+            return ItemFactory.getInstance().createBooleanItem(((Boolean)object).booleanValue());
+        }
+        if(object instanceof ObjectId)
+        {
+            ObjectId id = (ObjectId) object;
+            return ItemFactory.getInstance().createStringItem(id.toHexString());
+        }
+        if(object instanceof Double)
+        {
+            return ItemFactory.getInstance().createDoubleItem(((Double)object).doubleValue());
+        }
+        if(object instanceof Date)
+        {
+            Date d = (Date) object;
+            DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");  
+            String date = dateFormat.format(d);
+            return ItemFactory.getInstance().createDateItem(date);
+        }
+        if(object == null)
+        {
+            return ItemFactory.getInstance().createNullItem();
+        }
+        throw new OurBadException(
+            "Unhandled BSON type found while generating rows: '" + object.getClass().getCanonicalName() + ".", metadata);
     }
 }
