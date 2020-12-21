@@ -21,7 +21,12 @@
 
 package org.rumbledb.runtime.functions.io;
 
-import com.jsoniter.JsonIterator;
+import java.io.StringReader;
+import java.util.List;
+
+import javax.json.Json;
+import javax.json.stream.JsonParser;
+
 import org.rumbledb.api.Item;
 import org.rumbledb.context.DynamicContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
@@ -30,8 +35,6 @@ import org.rumbledb.expressions.ExecutionMode;
 import org.rumbledb.items.parsing.ItemParser;
 import org.rumbledb.runtime.RuntimeIterator;
 import org.rumbledb.runtime.functions.base.LocalFunctionCallIterator;
-
-import java.util.List;
 
 public class ParseJsonFunctionIterator extends LocalFunctionCallIterator {
 
@@ -53,14 +56,14 @@ public class ParseJsonFunctionIterator extends LocalFunctionCallIterator {
     public void open(DynamicContext context) {
         super.open(context);
         this.string = this.iterator.materializeFirstItemOrNull(context);
-        this.hasNext = string != null;
+        this.hasNext = this.string != null;
     }
 
     @Override
     public void reset(DynamicContext context) {
         super.reset(context);
         this.string = this.iterator.materializeFirstItemOrNull(context);
-        this.hasNext = string != null;
+        this.hasNext = this.string != null;
     }
 
     @Override
@@ -74,7 +77,7 @@ public class ParseJsonFunctionIterator extends LocalFunctionCallIterator {
         if (this.hasNext) {
             this.hasNext = false;
             try {
-                JsonIterator object = JsonIterator.parse(this.string.getStringValue());
+                JsonParser object = Json.createParser(new StringReader(this.string.getStringValue()));
                 return ItemParser.getItemFromObject(object, getMetadata());
             } catch (IteratorFlowException e) {
                 throw new IteratorFlowException(e.getJSONiqErrorMessage(), getMetadata());

@@ -54,7 +54,7 @@ public class UnparsedTextFunctionIterator extends LocalFunctionCallIterator {
         super.open(context);
         this.iterator = this.children.get(0);
         this.path = this.iterator.materializeFirstItemOrNull(context);
-        this.hasNext = path != null;
+        this.hasNext = this.path != null;
     }
 
     @Override
@@ -62,7 +62,7 @@ public class UnparsedTextFunctionIterator extends LocalFunctionCallIterator {
         super.reset(context);
         this.iterator = this.children.get(0);
         this.path = this.iterator.materializeFirstItemOrNull(context);
-        this.hasNext = path != null;
+        this.hasNext = this.path != null;
     }
 
     @Override

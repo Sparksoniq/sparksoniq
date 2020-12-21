@@ -20,10 +20,12 @@
 
 package iq;
 
-import iq.base.AnnotationsTestsBase;
-import org.rumbledb.utils.JsonIterUtils;
-import scala.util.Properties;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
+import iq.base.AnnotationsTestsBase;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.junit.Assert;
@@ -33,13 +35,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.rumbledb.api.Item;
 import org.rumbledb.api.SequenceOfItems;
+import scala.util.Properties;
 import sparksoniq.spark.SparkSessionManager;
 import utils.FileManager;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 
 @RunWith(Parameterized.class)
 public class RuntimeTests extends AnnotationsTestsBase {
@@ -95,7 +93,6 @@ public class RuntimeTests extends AnnotationsTestsBase {
         SparkSessionManager.COLLECT_ITEM_LIMIT = configuration.getResultSizeCap();
         System.err.println("Spark version: " + SparkSessionManager.getInstance().getJavaSparkContext().version());
 
-        JsonIterUtils.applyJsonIterFaultyInitializationWorkAround(configuration);
     }
 
     @Test(timeout = 1000000)

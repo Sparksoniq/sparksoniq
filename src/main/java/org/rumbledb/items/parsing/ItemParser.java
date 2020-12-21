@@ -20,8 +20,17 @@
 
 package org.rumbledb.items.parsing;
 
-import com.jsoniter.JsonIterator;
-import com.jsoniter.ValueType;
+import java.io.Serializable;
+import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.json.stream.JsonParser;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.spark.ml.linalg.DenseVector;
 import org.apache.spark.ml.linalg.SparseVector;
@@ -46,14 +55,7 @@ import org.rumbledb.types.ItemType;
 import scala.collection.mutable.WrappedArray;
 import sparksoniq.spark.SparkSessionManager;
 
-import java.io.Serializable;
-import java.lang.reflect.Array;
-import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import static javax.json.stream.JsonParser.Event.*;
 
 public class ItemParser implements Serializable {
 
@@ -61,48 +63,71 @@ public class ItemParser implements Serializable {
     private static final long serialVersionUID = 1L;
     private static final DataType vectorType = new VectorUDT();
     public static final DataType decimalType = new DecimalType(30, 15); // 30 and 15 are arbitrary
+    private static final Item ARRAY_END_FLAG = ItemFactory.getInstance()
+        .createStringItem("40a2fbe0-42c0-4df9-9756-2bb3afdc3048");
+    private static final Item OBJECT_END_FLAG = ItemFactory.getInstance()
+        .createStringItem("00eed5db-fae2-4cac-acdb-9798f8b9282c");
 
-    public static Item getItemFromObject(JsonIterator object, ExceptionMetadata metadata) {
+    public static Item getItemFromObject(JsonParser object, ExceptionMetadata metadata) {
         try {
-            if (object.whatIsNext().equals(ValueType.STRING)) {
-                return ItemFactory.getInstance().createStringItem(object.readString());
-            }
-            if (object.whatIsNext().equals(ValueType.NUMBER)) {
-                String number = object.readNumberAsString();
+            JsonParser.Event next = object.next();
+            Item result;
+            if (next == VALUE_STRING) {
+                result = ItemFactory.getInstance().createStringItem(object.getString());
+            } else if (next == VALUE_NUMBER) {
+                String number = object.getString();
                 if (number.contains("E") || number.contains("e")) {
-                    return ItemFactory.getInstance().createDoubleItem(Double.parseDouble(number));
+                    result = ItemFactory.getInstance().createDoubleItem(Double.parseDouble(number));
+                } else if (number.contains(".")) {
+                    result = ItemFactory.getInstance().createDecimalItem(new BigDecimal(number));
+                } else {
+                    result = ItemFactory.getInstance().createIntegerItem(number);
                 }
-                if (number.contains(".")) {
-                    return ItemFactory.getInstance().createDecimalItem(new BigDecimal(number));
-                }
-                return ItemFactory.getInstance().createIntegerItem(number);
-            }
-            if (object.whatIsNext().equals(ValueType.BOOLEAN)) {
-                return ItemFactory.getInstance().createBooleanItem(object.readBoolean());
-            }
-            if (object.whatIsNext().equals(ValueType.ARRAY)) {
+            } else if (next == VALUE_TRUE) {
+                result = ItemFactory.getInstance().createBooleanItem(true);
+            } else if (next == VALUE_FALSE) {
+                result = ItemFactory.getInstance().createBooleanItem(false);
+            } else if (next == START_ARRAY) {
                 List<Item> values = new ArrayList<>();
-                while (object.readArray()) {
-                    values.add(getItemFromObject(object, metadata));
+                while (object.hasNext()) {
+                    Item nextItem = getItemFromObject(object, metadata);
+                    if (nextItem.isString() && nextItem.equals(ARRAY_END_FLAG)) {
+                        break;
+                    }
+                    values.add(nextItem);
                 }
-                return ItemFactory.getInstance().createArrayItem(values);
-            }
-            if (object.whatIsNext().equals(ValueType.OBJECT)) {
+                result = ItemFactory.getInstance().createArrayItem(values);
+            } else if (next == END_ARRAY) {
+                result = ARRAY_END_FLAG;
+            } else if (next == START_OBJECT) {
                 List<String> keys = new ArrayList<>();
                 List<Item> values = new ArrayList<>();
-                String s;
-                while ((s = object.readObject()) != null) {
-                    keys.add(s);
-                    values.add(getItemFromObject(object, metadata));
+                while (object.hasNext()) {
+                    JsonParser.Event objectNext = object.next();
+                    if (objectNext == END_OBJECT) {
+                        break;
+                    }
+                    keys.add(object.getString());
+                    Item nextItem = getItemFromObject(object, metadata);
+                    if (nextItem.isString() && nextItem.equals(OBJECT_END_FLAG)) {
+                        break;
+                    }
+                    values.add(nextItem);
                 }
-                return ItemFactory.getInstance()
+                result = ItemFactory.getInstance()
                     .createObjectItem(keys, values, metadata);
+            } else if (next == END_OBJECT) {
+                result = OBJECT_END_FLAG;
+            } else if (next == VALUE_NULL) {
+                result = ItemFactory.getInstance().createNullItem();
+            } else {
+                throw new ParsingException("Invalid value found while parsing. JSON is not well-formed!", metadata);
             }
-            if (object.whatIsNext().equals(ValueType.NULL)) {
-                object.readNull();
-                return ItemFactory.getInstance().createNullItem();
-            }
-            throw new ParsingException("Invalid value found while parsing. JSON is not well-formed!", metadata);
+
+            // this hasNext call throws if more than a single top level item is detected, otherwise does nothing
+            object.hasNext();
+
+            return result;
         } catch (Exception e) {
             throw new ParsingException(
                     "An error happened while parsing JSON. JSON is not well-formed! Hint: if you use json-file(), it must be in the JSON Lines format, with one value per line. If this is not the case, consider using json-doc().",
