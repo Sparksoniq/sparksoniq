@@ -70,6 +70,8 @@ public class ItemParser implements Serializable {
             byte token = object.last();
             if (token == '"') {
                 String s = object.readString();
+                assertSingleItemAtTopLevel(object, isTopLevel);
+
                 if (!isTopLevel) {
                     object.getNextToken();
                 }
@@ -91,6 +93,7 @@ public class ItemParser implements Serializable {
                     }
                     token = object.getNextToken();
                 }
+                assertSingleItemAtTopLevel(object, isTopLevel);
                 String number = sb.toString();
                 if (number.contains("E") || number.contains("e")) {
                     return ItemFactory.getInstance().createDoubleItem(Double.parseDouble(number));
@@ -104,6 +107,7 @@ public class ItemParser implements Serializable {
                 if (!object.wasTrue()) {
                     throw new ParsingException("Parsing error! true expected", metadata);
                 }
+                assertSingleItemAtTopLevel(object, isTopLevel);
                 if (!isTopLevel) {
                     object.getNextToken();
                 }
@@ -113,6 +117,7 @@ public class ItemParser implements Serializable {
                 if (!object.wasFalse()) {
                     throw new ParsingException("Parsing error! false expected", metadata);
                 }
+                assertSingleItemAtTopLevel(object, isTopLevel);
                 if (!isTopLevel) {
                     object.getNextToken();
                 }
@@ -140,6 +145,7 @@ public class ItemParser implements Serializable {
                     }
                     object.getNextToken();
                 }
+                assertSingleItemAtTopLevel(object, isTopLevel);
                 if (!isTopLevel) {
                     object.getNextToken();
                 }
@@ -171,6 +177,7 @@ public class ItemParser implements Serializable {
                     } ;
                     object.getNextToken();
                 }
+                assertSingleItemAtTopLevel(object, isTopLevel);
                 if (!isTopLevel) {
                     object.getNextToken();
                 }
@@ -182,6 +189,7 @@ public class ItemParser implements Serializable {
                 if (!object.wasNull()) {
                     throw new ParsingException("Parsing error! null expected", metadata);
                 }
+                assertSingleItemAtTopLevel(object, isTopLevel);
                 if (!isTopLevel) {
                     object.getNextToken();
                 }
@@ -201,6 +209,18 @@ public class ItemParser implements Serializable {
             );
             ex.initCause(e);
             throw ex;
+        }
+    }
+
+    private static void assertSingleItemAtTopLevel(JsonReader<Object> object, boolean isTopLevel)
+            throws java.io.IOException {
+        if (isTopLevel) {
+            while(object.getCurrentIndex() != object.length()) {
+                object.read();
+                if (object.last() != 32) {  // TODO: replace this with wasWhiteSpace() of DslJson::JsonReader
+                    throw new RuntimeException("More than one top level item detected in JSON");
+                }
+            }
         }
     }
 
