@@ -21,7 +21,8 @@
 
 package org.rumbledb.runtime.functions.io;
 
-import com.google.gson.stream.JsonReader;
+import com.dslplatform.json.DslJson;
+import com.dslplatform.json.JsonReader;
 import org.rumbledb.api.Item;
 import org.rumbledb.context.DynamicContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
@@ -32,7 +33,7 @@ import org.rumbledb.items.parsing.ItemParser;
 import org.rumbledb.runtime.RuntimeIterator;
 import org.rumbledb.runtime.functions.base.LocalFunctionCallIterator;
 
-import java.io.StringReader;
+import java.nio.charset.Charset;
 import java.util.List;
 
 public class ParseJsonFunctionIterator extends LocalFunctionCallIterator {
@@ -73,8 +74,11 @@ public class ParseJsonFunctionIterator extends LocalFunctionCallIterator {
         if (this.hasNext) {
             this.hasNext = false;
             try {
-                JsonReader object = new JsonReader(new StringReader(this.string.getStringValue()));
-                return ItemParser.getItemFromObject(object, getMetadata());
+                DslJson<Object> dslJson = new DslJson<Object>();
+                JsonReader<Object> object = dslJson.newReader(
+                    this.string.getStringValue().getBytes(Charset.forName("UTF-8"))
+                );
+                return ItemParser.getItemFromObject(object, getMetadata(), true);
             } catch (IteratorFlowException e) {
                 RumbleException ex = new IteratorFlowException(e.getJSONiqErrorMessage(), getMetadata());
                 ex.initCause(e);

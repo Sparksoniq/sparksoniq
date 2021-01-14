@@ -25,7 +25,10 @@ import org.rumbledb.api.Item;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import com.google.gson.stream.JsonReader;
 
-import java.io.StringReader;
+import com.dslplatform.json.DslJson;
+import com.dslplatform.json.JsonReader;
+
+import java.nio.charset.Charset;
 import java.util.Iterator;
 
 public class JSONSyntaxToItemMapper implements FlatMapFunction<Iterator<String>, Item> {
@@ -47,8 +50,9 @@ public class JSONSyntaxToItemMapper implements FlatMapFunction<Iterator<String>,
 
             @Override
             public Item next() {
-                JsonReader object = new JsonReader(new StringReader(stringIterator.next()));
-                return ItemParser.getItemFromObject(object, JSONSyntaxToItemMapper.this.metadata);
+                DslJson<Object> dslJson = new DslJson<Object>();
+                JsonReader<Object> object = dslJson.newReader(stringIterator.next().getBytes(Charset.forName("UTF-8")));
+                return ItemParser.getItemFromObject(object, JSONSyntaxToItemMapper.this.metadata, true);
             }
 
             @Override

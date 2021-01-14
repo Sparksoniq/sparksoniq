@@ -41,8 +41,7 @@ import org.rumbledb.exceptions.OurBadException;
 import org.rumbledb.exceptions.ParsingException;
 import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.items.ItemFactory;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
+import com.dslplatform.json.JsonReader;
 import org.rumbledb.types.ItemType;
 import scala.collection.mutable.WrappedArray;
 import sparksoniq.spark.SparkSessionManager;
@@ -63,13 +62,36 @@ public class ItemParser implements Serializable {
     private static final DataType vectorType = new VectorUDT();
     public static final DataType decimalType = new DecimalType(30, 15); // 30 and 15 are arbitrary
 
-    public static Item getItemFromObject(JsonReader object, ExceptionMetadata metadata) {
+    public static Item getItemFromObject(JsonReader<Object> object, ExceptionMetadata metadata, boolean isTopLevel) {
         try {
-            if (object.peek() == JsonToken.STRING) {
-                return ItemFactory.getInstance().createStringItem(object.nextString());
+            if (isTopLevel) {
+                object.getNextToken();
             }
-            if (object.peek() == JsonToken.NUMBER) {
-                String number = object.nextString();
+            byte token = object.last();
+            if (token == '"') {
+                String s = object.readString();
+                if (!isTopLevel) {
+                    object.getNextToken();
+                }
+                return ItemFactory.getInstance().createStringItem(s);
+            }
+            if (token == '+' || token == '-' || token == '.' || (token >= '0' && token <= '9')) {
+                StringBuilder sb = new StringBuilder();
+                while (
+                    token == '+'
+                        || token == '-'
+                        || token == '.'
+                        || (token >= '0' && token <= '9')
+                        || token == 'e'
+                        || token == 'E'
+                ) {
+                    sb.append((char) token);
+                    if (object.getCurrentIndex() == object.length()) {
+                        break;
+                    }
+                    token = object.getNextToken();
+                }
+                String number = sb.toString();
                 if (number.contains("E") || number.contains("e")) {
                     return ItemFactory.getInstance().createDoubleItem(Double.parseDouble(number));
                 }
@@ -78,42 +100,107 @@ public class ItemParser implements Serializable {
                 }
                 return ItemFactory.getInstance().createIntegerItem(number);
             }
-            if (object.peek() == JsonToken.BOOLEAN) {
-                return ItemFactory.getInstance().createBooleanItem(object.nextBoolean());
+            if (token == 't') {
+                if (!object.wasTrue()) {
+                    throw new ParsingException("Parsing error! true expected", metadata);
+                }
+                if (!isTopLevel) {
+                    object.getNextToken();
+                }
+                return ItemFactory.getInstance().createBooleanItem(true);
             }
-            if (object.peek() == JsonToken.BEGIN_ARRAY) {
+            if (token == 'f') {
+                if (!object.wasFalse()) {
+                    throw new ParsingException("Parsing error! false expected", metadata);
+                }
+                if (!isTopLevel) {
+                    object.getNextToken();
+                }
+                return ItemFactory.getInstance().createBooleanItem(false);
+            }
+            if (token == '[') {
                 List<Item> values = new ArrayList<>();
-                object.beginArray();
-                while (object.hasNext()) {
-                    values.add(getItemFromObject(object, metadata));
+                object.getNextToken();
+                if (object.last() == ']') {
+                    if (!isTopLevel) {
+                        object.getNextToken();
+                    }
+                    return ItemFactory.getInstance().createArrayItem(values);
+                }
+                while (true) {
+                    values.add(getItemFromObject(object, metadata, false));
+                    if (object.last() == ']') {
+                        break;
+                    }
+                    if (object.last() != ',') {
+                        throw new ParsingException(
+                                "Parsing error! , or ] expected but found " + (char) object.last(),
+                                metadata
+                        );
+                    }
+                    object.getNextToken();
+                }
+                if (!isTopLevel) {
+                    object.getNextToken();
                 }
                 object.endArray();
                 return ItemFactory.getInstance().createArrayItem(values);
             }
-            if (object.peek() == JsonToken.BEGIN_OBJECT) {
+            if (token == '{') {
                 List<String> keys = new ArrayList<>();
                 List<Item> values = new ArrayList<>();
-                object.beginObject();
-                while (object.hasNext()) {
-                    keys.add(object.nextName());
-                    values.add(getItemFromObject(object, metadata));
+                object.getNextToken();
+                if (object.last() == '}') {
+                    if (!isTopLevel) {
+                        object.getNextToken();
+                    }
+                    return ItemFactory.getInstance()
+                        .createObjectItem(keys, values, metadata);
+                }
+                while (true) {
+                    keys.add(object.readKey());
+                    values.add(getItemFromObject(object, metadata, false));
+                    if (object.last() == '}') {
+                        break;
+                    }
+                    if (object.last() != ',') {
+                        throw new ParsingException(
+                                "Parsing error! , or } expected but found " + (char) object.last(),
+                                metadata
+                        );
+                    } ;
+                    object.getNextToken();
+                }
+                if (!isTopLevel) {
+                    object.getNextToken();
                 }
                 object.endObject();
                 return ItemFactory.getInstance()
                     .createObjectItem(keys, values, metadata);
             }
-            if (object.peek() == JsonToken.NULL) {
-                object.nextNull();
+            if (token == 'n') {
+                if (!object.wasNull()) {
+                    throw new ParsingException("Parsing error! null expected", metadata);
+                }
+                if (!isTopLevel) {
+                    object.getNextToken();
+                }
                 return ItemFactory.getInstance().createNullItem();
             }
-            throw new ParsingException("Invalid value found while parsing. JSON is not well-formed!", metadata);
+            throw new ParsingException(
+                    "Invalid value found while parsing. JSON is not well-formed! Token: " + (char) token,
+                    metadata
+            );
         } catch (Exception e) {
-            RumbleException r = new ParsingException(
+            if (e instanceof ParsingException) {
+                throw (ParsingException) e;
+            }
+            RumbleException ex = new ParsingException(
                     "An error happened while parsing JSON. JSON is not well-formed! Hint: if you use json-file(), it must be in the JSON Lines format, with one value per line. If this is not the case, consider using json-doc().",
                     metadata
             );
-            r.initCause(e);
-            throw r;
+            ex.initCause(e);
+            throw ex;
         }
     }
 

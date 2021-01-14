@@ -25,15 +25,19 @@ import org.rumbledb.api.Item;
 import org.rumbledb.context.DynamicContext;
 import org.rumbledb.exceptions.ExceptionMetadata;
 import org.rumbledb.exceptions.IteratorFlowException;
+import org.rumbledb.exceptions.RumbleException;
 import org.rumbledb.expressions.ExecutionMode;
 import org.rumbledb.items.parsing.ItemParser;
-import com.google.gson.stream.JsonReader;
+
+import com.dslplatform.json.DslJson;
+import com.dslplatform.json.JsonReader;
+
 import org.rumbledb.runtime.RuntimeIterator;
 import org.rumbledb.runtime.functions.base.LocalFunctionCallIterator;
 import org.rumbledb.runtime.functions.input.FileSystemUtil;
 
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 
@@ -75,10 +79,21 @@ public class JsonDocFunctionIterator extends LocalFunctionCallIterator {
                     this.currentDynamicContextForLocalExecution.getRumbleRuntimeConfiguration(),
                     getMetadata()
                 );
-                JsonReader object = new JsonReader(new InputStreamReader(is));
-                return ItemParser.getItemFromObject(object, getMetadata());
+                DslJson<Object> dslJson = new DslJson<Object>();
+                JsonReader<Object> object = dslJson.newReader();
+                object.process(is);
+                return ItemParser.getItemFromObject(object, getMetadata(), true);
             } catch (IteratorFlowException e) {
-                throw new IteratorFlowException(e.getJSONiqErrorMessage(), getMetadata());
+                RumbleException ex = new IteratorFlowException(e.getJSONiqErrorMessage(), getMetadata());
+                ex.initCause(e);
+                throw ex;
+            } catch (IOException e) {
+                RumbleException ex = new IteratorFlowException(
+                        "I/O Exception while binding the input stream",
+                        getMetadata()
+                );
+                ex.initCause(e);
+                throw ex;
             }
         }
         throw new IteratorFlowException(RuntimeIterator.FLOW_EXCEPTION_MESSAGE + " json-doc function", getMetadata());
