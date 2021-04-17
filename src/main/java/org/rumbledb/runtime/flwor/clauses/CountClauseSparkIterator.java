@@ -22,7 +22,6 @@ package org.rumbledb.runtime.flwor.clauses;
 
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.rumbledb.api.Item;
 import org.rumbledb.context.DynamicContext;
@@ -35,7 +34,6 @@ import org.rumbledb.items.ItemFactory;
 import org.rumbledb.runtime.RuntimeIterator;
 import org.rumbledb.runtime.RuntimeTupleIterator;
 import org.rumbledb.runtime.flwor.FlworDataFrameUtils;
-import org.rumbledb.runtime.flwor.udfs.LongSerializeUDF;
 import org.rumbledb.runtime.primary.VariableReferenceIterator;
 
 import sparksoniq.jsoniq.tuple.FlworTuple;
@@ -158,21 +156,12 @@ public class CountClauseSparkIterator extends RuntimeTupleIterator {
 
         Dataset<Row> dfWithIndex = FlworDataFrameUtils.zipWithIndex(df, 1L, variableName.toString());
 
-        df.sparkSession()
-            .udf()
-            .register(
-                "serializeCountIndex",
-                new LongSerializeUDF(),
-                DataTypes.BinaryType
-            );
-
         dfWithIndex.createOrReplaceTempView("input");
         dfWithIndex = dfWithIndex.sparkSession()
             .sql(
                 String.format(
-                    "select %s serializeCountIndex(`%s`) as `%s` from input",
+                    "select %s `%s` from input",
                     selectSQL,
-                    variableName,
                     variableName
                 )
             );

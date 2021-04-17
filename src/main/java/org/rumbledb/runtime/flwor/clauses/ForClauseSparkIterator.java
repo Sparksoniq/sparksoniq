@@ -48,7 +48,6 @@ import org.rumbledb.runtime.flwor.NativeClauseContext;
 import org.rumbledb.runtime.flwor.closures.ItemsToBinaryColumn;
 import org.rumbledb.runtime.flwor.udfs.DataFrameContext;
 import org.rumbledb.runtime.flwor.udfs.ForClauseUDF;
-import org.rumbledb.runtime.flwor.udfs.IntegerSerializeUDF;
 import org.rumbledb.runtime.flwor.udfs.WhereClauseUDF;
 import org.rumbledb.runtime.logics.AndOperationIterator;
 import org.rumbledb.runtime.misc.ComparisonIterator;
@@ -493,19 +492,12 @@ public class ForClauseSparkIterator extends RuntimeTupleIterator {
         // If the join criterion uses the context count, then we need to add it to the expression side (it is a
         // constant).
         if (sequenceVariableName.equals(Name.CONTEXT_ITEM) && predicateDependencies.containsKey(Name.CONTEXT_COUNT)) {
-            expressionDF.sparkSession()
-                .udf()
-                .register(
-                    "serializeIntegerIndex",
-                    new IntegerSerializeUDF(),
-                    DataTypes.BinaryType
-                );
             long size = expressionDF.count();
             expressionDF.createOrReplaceTempView(expressionDFTableName);
             expressionDF = expressionDF.sparkSession()
                 .sql(
                     String.format(
-                        "SELECT *, serializeIntegerIndex(%s) AS `%s` FROM %s",
+                        "SELECT *, %s AS `%s` FROM %s",
                         Long.toString(size),
                         Name.CONTEXT_COUNT.getLocalName(),
                         expressionDFTableName
@@ -930,19 +922,11 @@ public class ForClauseSparkIterator extends RuntimeTupleIterator {
                     );
             }
         } else {
-            df.sparkSession()
-                .udf()
-                .register(
-                    "serializePositionIndex",
-                    new IntegerSerializeUDF(),
-                    DataTypes.BinaryType
-                );
-
             if (this.allowingEmpty) {
                 df = df.sparkSession()
                     .sql(
                         String.format(
-                            "SELECT %s for_vars.`%s`, serializePositionIndex(IF(for_vars.`%s` IS NULL, 0, for_vars.`%s` + 1)) AS `%s` "
+                            "SELECT %s for_vars.`%s`, IF(for_vars.`%s` IS NULL, 0, for_vars.`%s` + 1) AS `%s` "
                                 + "FROM input "
                                 + "LATERAL VIEW OUTER posexplode(forClauseUDF(%s)) for_vars AS `%s`, `%s` ",
                             projectionVariables,
@@ -959,7 +943,7 @@ public class ForClauseSparkIterator extends RuntimeTupleIterator {
                 df = df.sparkSession()
                     .sql(
                         String.format(
-                            "SELECT %s for_vars.`%s`, serializePositionIndex(for_vars.`%s` + 1) AS `%s` "
+                            "SELECT %s for_vars.`%s`, for_vars.`%s` + 1 AS `%s` "
                                 + "FROM input "
                                 + "LATERAL VIEW posexplode(forClauseUDF(%s)) for_vars AS `%s`, `%s` ",
                             projectionVariables,
@@ -1083,18 +1067,11 @@ public class ForClauseSparkIterator extends RuntimeTupleIterator {
             return dfWithIndex;
         }
         dfWithIndex.createOrReplaceTempView("inputWithIndex");
-        dfWithIndex.sparkSession()
-            .udf()
-            .register(
-                "serializeCountIndex",
-                new IntegerSerializeUDF(),
-                DataTypes.BinaryType
-            );
 
         dfWithIndex = dfWithIndex.sparkSession()
             .sql(
                 String.format(
-                    "SELECT inputWithIndex.`%s`, IF(inputWithIndex.`%s` IS NULL, serializeCountIndex(0), inputWithIndex.`%s`) AS `%s` FROM VALUES(1) FULL OUTER JOIN inputWithIndex",
+                    "SELECT inputWithIndex.`%s`, IF(inputWithIndex.`%s` IS NULL, 0, inputWithIndex.`%s`) AS `%s` FROM VALUES(1) FULL OUTER JOIN inputWithIndex",
                     variableName,
                     positionalVariableName,
                     positionalVariableName,
