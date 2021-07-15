@@ -2,6 +2,7 @@ package org.rumbledb.runtime.typing;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang.StringUtils;
 import org.rumbledb.api.Item;
 import org.rumbledb.context.DynamicContext;
 import org.rumbledb.exceptions.CastException;
@@ -122,8 +123,12 @@ public class CastIterator extends AtMostOneItemLocalRuntimeIterator {
 
             if (targetType.equals(BuiltinTypesCatalogue.booleanItem)) {
                 if (item.isString()) {
-                    return ItemFactory.getInstance()
-                        .createBooleanItem(Boolean.parseBoolean(item.getStringValue().trim()));
+                    if (StringUtils.isNumeric(item.getStringValue())) {
+                        return ItemFactory.getInstance().createBooleanItem(item.castToIntValue() != 0);
+                    } else {
+                        return ItemFactory.getInstance()
+                            .createBooleanItem(Boolean.parseBoolean(item.getStringValue().trim()));
+                    }
                 }
                 if (item.isInt()) {
                     return ItemFactory.getInstance().createBooleanItem(item.getIntValue() != 0);
@@ -229,6 +234,55 @@ public class CastIterator extends AtMostOneItemLocalRuntimeIterator {
                 }
             }
 
+            if (targetType.isSubtypeOf(BuiltinTypesCatalogue.integerItem)) {
+                if (!item.isString() && !item.isNumeric()) {
+                    // If it is not a number, we fail (in this method, this is done with a null as the exception will
+                    // only be thrown if the attempt to cast is made in particular circumstances.
+                    return null;
+                }
+
+                // Make sure item is string, then cast to primitive type
+                // Add also if item.isNumeric
+                if (item.isInt()) {
+                    return checkFacetsInteger(item, targetType);
+                }
+
+                if (item.isInteger()) {
+                    return checkFacetsInteger(item, targetType);
+                }
+
+                if (targetType.isSubtypeOf(BuiltinTypesCatalogue.intItem)) {
+                    // If it is not an integer we need to cast it to an integer first (long's primitive type), and then
+                    // annotate.
+                    Item intItem = castItemToType(item, BuiltinTypesCatalogue.intItem, metadata);
+                    if (intItem == null) {
+                        return null;
+                    }
+                    // if (item.isInt()) {
+                    return checkFacetsInt(intItem, targetType);
+                    // }
+                }
+
+                if (targetType.isSubtypeOf(BuiltinTypesCatalogue.integerItem)) {
+                    // If it is not an integer we need to cast it to an integer first (long's primitive type), and then
+                    // annotate as long.
+                    Item integerItem = castItemToType(item, BuiltinTypesCatalogue.integerItem, metadata);
+                    if (integerItem == null) {
+                        // xs:positiveInteger("23.4") goes here
+                        return null;
+                    }
+
+                    // if (item.isInteger()) { removed to support casting decimals eg xs:positiveInteger(1.4) gives 1
+                    return checkFacetsInteger(integerItem, targetType);
+                }
+
+                return ItemFactory.getInstance()
+                    .createAnnotatedItem(
+                        item,
+                        targetType
+                    );
+            }
+
             if (targetType.equals(BuiltinTypesCatalogue.dateItem)) {
                 if (item.isString()) {
                     return ItemFactory.getInstance().createDateItem(item.getStringValue().trim());
@@ -251,6 +305,17 @@ public class CastIterator extends AtMostOneItemLocalRuntimeIterator {
                 }
                 if (item.isDate()) {
                     return ItemFactory.getInstance().createDateTimeItem(item.getDateTimeValue(), item.hasTimeZone());
+                }
+            }
+            if (targetType.equals(BuiltinTypesCatalogue.dateTimeStampItem)) {
+                if (item.isString()) {
+                    return ItemFactory.getInstance().createDateTimeStampItem(item.getStringValue().trim());
+                }
+                if (item.isDate()) {
+                    return ItemFactory.getInstance().createDateTimeStampItem(item.getDateTimeValue(), false);
+                }
+                if (item.isDateTime()) {
+                    return ItemFactory.getInstance().createDateTimeStampItem(item.getDateTimeValue(), true);
                 }
             }
             if (targetType.equals(BuiltinTypesCatalogue.yearMonthDurationItem)) {
@@ -310,4 +375,44 @@ public class CastIterator extends AtMostOneItemLocalRuntimeIterator {
             return null;
         }
     }
+
+    public static Item checkFacetsInt(Item item, ItemType targetType) {
+        // Use castToInt rather than getInt so it supports String item
+        // compare returns -1 if less, 0 if eq, 1 if greater so <= 0 tests for less or equal
+
+        if (
+            (targetType.getMinInclusiveFacet() != null
+                && item.getIntValue() < targetType.getMinInclusiveFacet().getIntValue())
+                || (targetType.getMaxInclusiveFacet() != null
+                    && item.getIntValue() > targetType.getMaxInclusiveFacet().getIntValue())
+            // || (targetType.getMinExclusiveFacet() != null && item.getIntValue() <=
+            // targetType.getMinExclusiveFacet().getIntValue())
+            // || (targetType.getMaxExclusiveFacet() != null && item.getIntValue() >=
+            // targetType.getMaxExclusiveFacet().getIntValue())
+        ) {
+            return null;
+        }
+        return ItemFactory.getInstance().createAnnotatedItem(item, targetType);
+    }
+
+    public static Item checkFacetsInteger(Item item, ItemType targetType) {
+        // Use castToInt rather than getInt so it supports String item
+        // compare returns -1 if less, 0 if eq, 1 if greater so <= 0 tests for less or equal
+
+        if (
+            (targetType.getMinInclusiveFacet() != null
+                && item.getIntegerValue().compareTo(targetType.getMinInclusiveFacet().getIntegerValue()) == -1)
+                || (targetType.getMaxInclusiveFacet() != null
+                    && item.getIntegerValue().compareTo(targetType.getMaxInclusiveFacet().getIntegerValue()) == 1)
+            // || (targetType.getMinExclusiveFacet() != null &&
+            // item.getIntegerValue().compareTo(targetType.getMinExclusiveFacet().getIntegerValue()) <= 0)
+            // || (targetType.getMaxExclusiveFacet() != null &&
+            // item.getIntegerValue().compareTo(targetType.getMaxExclusiveFacet().getIntegerValue()) >= 0)
+        ) {
+            return null;
+        }
+
+        return ItemFactory.getInstance().createAnnotatedItem(item, targetType);
+    }
 }
+
