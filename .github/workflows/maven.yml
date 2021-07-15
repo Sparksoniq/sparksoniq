@@ -26,6 +26,8 @@ jobs:
       run: mvn install -DskipTests -Dgpg.skip --quiet
     - name: Compile with Maven
       run: mvn clean compile assembly:single
+    - name: Spotless check
+      run: mvn spotless:check
     - name: FrontendTests
       run: mvn -Dtest=FrontendTests test
     - name: RuntimeTests
@@ -38,8 +40,8 @@ jobs:
       run: mvn -Dtest=NativeFLWORRuntimeTests test
     - name: JavaAPITest
       run: mvn -Dtest=JavaAPITest test
-    - name: Spotless check
-      run: mvn spotless:check
+    - name: Install Spark and run server tests
+      run: mkdir -p /opt; wget -q -O /opt/spark.tgz https://downloads.apache.org/spark/spark-2.4.5/spark-2.4.5-bin-hadoop2.7.tgz ; tar -xzf /opt/spark.tgz -C /opt/ ; rm /opt/spark.tgz ; export SPARK_HOME=/opt/spark-2.4.5-bin-hadoop2.7 ; export PATH=$PATH:/opt/spark-2.4.5-bin-hadoop2.7/bin; bash server-test-script.sh
     - name: Copying artefacts
       run: mkdir staging && cp target/*.jar staging
     - name: Package
