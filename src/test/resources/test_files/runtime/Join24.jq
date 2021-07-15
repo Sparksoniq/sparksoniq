@@ -1,4 +1,4 @@
-(:JIQS: ShouldRun; Output="({ "code" : "MI", "stores" : 3 }, { "code" : "CA", "stores" : 3 }, { "code" : "NY", "stores" : 1 }, { "code" : "MA", "stores" : 2 })" :)
+(:JIQS: ShouldRun; Output="({ "code" : "CA", "stores" : 3 }, { "code" : "MA", "stores" : 2 }, { "code" : "MI", "stores" : 3 }, { "code" : "NY", "stores" : 1 })" :)
 let $stores := parallelize((
   { "storeid" : 1, "state" : "CA" },
   { "storeid" : 2, "state" : [ "MA", "CA" ] },
@@ -19,6 +19,7 @@ return
 for $store in $stores
 for $state in $states[$$.code = flatten($store.state)]
 group by $code := $state.code
+order by $code
 return { "code" : $code, "stores" : count($store) }
 
 
