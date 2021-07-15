@@ -4,7 +4,7 @@ let $data := annotate(
     { "label": "integer", "binaryLabel": "integer", "name": "string", "age": "double", "weight": "double", "booleanCol": "boolean", "nullCol": "null", "stringCol": "string", "stringArrayCol": ["string"], "intArrayCol": ["integer"],  "doubleArrayCol": ["double"],  "doubleArrayArrayCol": [["double"]] }
 )
 
-let $est := get-estimator("OneHotEncoder")
+let $est := get-estimator("OneHotEncoderEstimator")
 let $tra := $est(
     $data,
     { "inputCols": ["binaryLabel", "age"], "outputCols": ["enc_binaryLabel", "enc_age"]}
@@ -23,4 +23,4 @@ return {
 }
 
 (: https://spark.apache.org/docs/2.4.4/api/java/org/apache/spark/ml/feature/OneHotEncoder.html :)
-
+(: WARNING - OneHotEncoderEstimator will be renamed OneHotEncoder and this OneHotEncoder will be removed in 3.0.0. :)
